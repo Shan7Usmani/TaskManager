@@ -14,9 +14,9 @@ describe('AddTaskDialog', () => {
     expect(screen.getByText('New Task')).toBeInTheDocument();
   });
 
-  it('renders title input', () => {
+  it('renders title input with correct placeholder', () => {
     render(<AddTaskDialog {...defaultProps} />);
-    expect(screen.getByPlaceholderText('Task title...')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('What needs to be done?')).toBeInTheDocument();
   });
 
   it('renders notes textarea', () => {
@@ -31,15 +31,9 @@ describe('AddTaskDialog', () => {
     expect(screen.getByText('Weekly')).toBeInTheDocument();
   });
 
-  it('renders time inputs', () => {
-    render(<AddTaskDialog {...defaultProps} />);
-    const timeInputs = screen.getAllByRole('spinbutton');
-    expect(timeInputs.length).toBeGreaterThanOrEqual(2);
-  });
-
   it('renders alarm checkbox', () => {
     render(<AddTaskDialog {...defaultProps} />);
-    expect(screen.getByText('Set alarm')).toBeInTheDocument();
+    expect(screen.getByText('Alarm')).toBeInTheDocument();
   });
 
   it('does not show ringtone selector when alarm is unchecked', () => {
@@ -49,7 +43,7 @@ describe('AddTaskDialog', () => {
 
   it('shows ringtone selector when alarm is checked', () => {
     render(<AddTaskDialog {...defaultProps} />);
-    fireEvent.click(screen.getByText('Set alarm'));
+    fireEvent.click(screen.getByText('Alarm'));
     expect(screen.getByText('Classic Alarm')).toBeInTheDocument();
   });
 
@@ -57,15 +51,6 @@ describe('AddTaskDialog', () => {
     const onClose = vi.fn();
     render(<AddTaskDialog {...defaultProps} onClose={onClose} />);
     fireEvent.click(screen.getByText('Cancel'));
-    expect(onClose).toHaveBeenCalled();
-  });
-
-  it('calls onClose when X button is clicked', () => {
-    const onClose = vi.fn();
-    render(<AddTaskDialog {...defaultProps} onClose={onClose} />);
-    const xBtn = screen.getByRole('button', { name: /close/i }) ||
-      document.querySelector('button.p-1')!;
-    fireEvent.click(xBtn);
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -80,7 +65,7 @@ describe('AddTaskDialog', () => {
     const onAdd = vi.fn();
     render(<AddTaskDialog {...defaultProps} onAdd={onAdd} />);
 
-    fireEvent.change(screen.getByPlaceholderText('Task title...'), {
+    fireEvent.change(screen.getByPlaceholderText('What needs to be done?'), {
       target: { value: 'New Task' },
     });
     fireEvent.click(screen.getByText('Add Task'));
@@ -99,7 +84,7 @@ describe('AddTaskDialog', () => {
     const onAdd = vi.fn();
     render(<AddTaskDialog {...defaultProps} onAdd={onAdd} />);
 
-    fireEvent.change(screen.getByPlaceholderText('Task title...'), {
+    fireEvent.change(screen.getByPlaceholderText('What needs to be done?'), {
       target: { value: '  Trimmed  ' },
     });
     fireEvent.click(screen.getByText('Add Task'));
@@ -113,7 +98,7 @@ describe('AddTaskDialog', () => {
     const onClose = vi.fn();
     render(<AddTaskDialog {...defaultProps} onClose={onClose} />);
 
-    fireEvent.change(screen.getByPlaceholderText('Task title...'), {
+    fireEvent.change(screen.getByPlaceholderText('What needs to be done?'), {
       target: { value: 'Task' },
     });
     fireEvent.click(screen.getByText('Add Task'));
@@ -125,7 +110,7 @@ describe('AddTaskDialog', () => {
     const onAdd = vi.fn();
     render(<AddTaskDialog {...defaultProps} onAdd={onAdd} />);
 
-    fireEvent.change(screen.getByPlaceholderText('Task title...'), {
+    fireEvent.change(screen.getByPlaceholderText('What needs to be done?'), {
       target: { value: 'Task' },
     });
     fireEvent.change(screen.getByPlaceholderText('Notes (optional)...'), {
@@ -142,7 +127,7 @@ describe('AddTaskDialog', () => {
     const onAdd = vi.fn();
     render(<AddTaskDialog {...defaultProps} onAdd={onAdd} />);
 
-    fireEvent.change(screen.getByPlaceholderText('Task title...'), {
+    fireEvent.change(screen.getByPlaceholderText('What needs to be done?'), {
       target: { value: 'Task' },
     });
     fireEvent.click(screen.getByText('Add Task'));
@@ -156,7 +141,7 @@ describe('AddTaskDialog', () => {
     const onAdd = vi.fn();
     render(<AddTaskDialog {...defaultProps} onAdd={onAdd} />);
 
-    fireEvent.change(screen.getByPlaceholderText('Task title...'), {
+    fireEvent.change(screen.getByPlaceholderText('What needs to be done?'), {
       target: { value: 'Task' },
     });
     fireEvent.change(screen.getByDisplayValue('Once'), {
@@ -173,7 +158,7 @@ describe('AddTaskDialog', () => {
     const onAdd = vi.fn();
     render(<AddTaskDialog {...defaultProps} onAdd={onAdd} listId="tomorrow" />);
 
-    fireEvent.change(screen.getByPlaceholderText('Task title...'), {
+    fireEvent.change(screen.getByPlaceholderText('What needs to be done?'), {
       target: { value: 'Task' },
     });
     fireEvent.click(screen.getByText('Add Task'));

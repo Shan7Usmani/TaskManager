@@ -1,5 +1,5 @@
 import { TaskList, Task } from './types';
-import { DEFAULT_LISTS } from './defaults';
+import { DEFAULT_LISTS, DEFAULT_TASKS } from './defaults';
 
 const LISTS_KEY = 'taskmanager_lists';
 const TASKS_KEY = 'taskmanager_tasks';
@@ -21,7 +21,16 @@ export function saveLists(lists: TaskList[]): void {
 export function getTasks(): Task[] {
   if (typeof window === 'undefined') return [];
   const raw = localStorage.getItem(TASKS_KEY);
-  if (!raw) return [];
+  if (!raw) {
+    const seeded = DEFAULT_TASKS.map((t) => ({
+      ...t,
+      id: crypto.randomUUID(),
+      completed: false,
+      createdAt: Date.now(),
+    }));
+    localStorage.setItem(TASKS_KEY, JSON.stringify(seeded));
+    return seeded;
+  }
   return JSON.parse(raw);
 }
 

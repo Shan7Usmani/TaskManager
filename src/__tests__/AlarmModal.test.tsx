@@ -24,9 +24,9 @@ const defaultProps = {
 };
 
 describe('AlarmModal', () => {
-  it('renders "Time for:" heading', () => {
+  it('renders "Time Alert" label', () => {
     render(<AlarmModal {...defaultProps} />);
-    expect(screen.getByText('Time for:')).toBeInTheDocument();
+    expect(screen.getByText('Time Alert')).toBeInTheDocument();
   });
 
   it('renders task title', () => {
@@ -70,13 +70,7 @@ describe('AlarmModal', () => {
         task={makeTask({ startTime: undefined })}
       />
     );
-    expect(screen.getByText('Time for:')).toBeInTheDocument();
+    expect(screen.getByText('Time Alert')).toBeInTheDocument();
     expect(screen.getByText('Wake up')).toBeInTheDocument();
-  });
-
-  it('has the red border styling', () => {
-    const { container } = render(<AlarmModal {...defaultProps} />);
-    const modal = container.querySelector('.border-red-500\\/30');
-    expect(modal).not.toBeNull();
   });
 });

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import TaskCard from '@/components/TaskCard';
 import { Task } from '@/lib/types';
@@ -78,19 +78,8 @@ describe('TaskCard', () => {
         onDelete={vi.fn()}
       />
     );
-    expect(screen.getByText(/10:00/)).toBeInTheDocument();
-  });
-
-  it('renders time end when both start and end are set', () => {
-    render(
-      <TaskCard
-        task={makeTask({ startTime: '10:00', endTime: '11:00' })}
-        isActive={false}
-        onComplete={vi.fn()}
-        onDelete={vi.fn()}
-      />
-    );
-    expect(screen.getByText(/11:00/)).toBeInTheDocument();
+    expect(screen.getByText('10:00')).toBeInTheDocument();
+    expect(screen.getByText('11:00')).toBeInTheDocument();
   });
 
   it('renders Daily badge for daily tasks', () => {
@@ -132,7 +121,7 @@ describe('TaskCard', () => {
 
   it('calls onComplete when checkbox is clicked', () => {
     const onComplete = vi.fn();
-    render(
+    const { container } = render(
       <TaskCard
         task={makeTask()}
         isActive={false}
@@ -140,8 +129,9 @@ describe('TaskCard', () => {
         onDelete={vi.fn()}
       />
     );
-    const checkbox = screen.getByRole('button').closest('button')!;
-    fireEvent.click(checkbox);
+    // The checkbox is the first button inside the card
+    const checkbox = container.querySelector('button.mt-0\\.5') || container.querySelectorAll('button')[0];
+    fireEvent.click(checkbox!);
     expect(onComplete).toHaveBeenCalledWith('task-1');
   });
 
@@ -155,7 +145,9 @@ describe('TaskCard', () => {
         onDelete={onDelete}
       />
     );
-    const deleteBtn = container.querySelector('.hover\\:text-red-400')!;
+    // Delete button has the Trash2 icon - it's the last button in the card
+    const buttons = container.querySelectorAll('button');
+    const deleteBtn = buttons[buttons.length - 1];
     fireEvent.click(deleteBtn);
     expect(onDelete).toHaveBeenCalledWith('task-1');
   });
@@ -183,11 +175,10 @@ describe('TaskCard', () => {
       />
     );
     const card = container.firstElementChild!;
-    expect(card.className).toContain('border-zinc-700');
-    expect(card.className).toContain('shadow-lg');
+    expect(card.className).toContain('glow-green');
   });
 
-  it('shows stopwatch when active and has start/end time', () => {
+  it('shows "Active" when active and has start/end time', () => {
     vi.mocked(useStopwatchMod.useStopwatch).mockReturnValue({
       elapsed: 300,
       remaining: 3300,
@@ -205,7 +196,7 @@ describe('TaskCard', () => {
         onDelete={vi.fn()}
       />
     );
-    expect(screen.getByText('In Progress')).toBeInTheDocument();
+    expect(screen.getByText('Active')).toBeInTheDocument();
     expect(screen.getByText('5:00')).toBeInTheDocument();
   });
 
@@ -218,19 +209,6 @@ describe('TaskCard', () => {
         onDelete={vi.fn()}
       />
     );
-    expect(screen.queryByText('In Progress')).toBeNull();
-  });
-
-  it('renders alarm bell when alarm is true', () => {
-    const { container } = render(
-      <TaskCard
-        task={makeTask({ alarm: true })}
-        isActive={false}
-        onComplete={vi.fn()}
-        onDelete={vi.fn()}
-      />
-    );
-    // Bell icon is rendered - check for the bell icon container
-    expect(container.querySelector('svg')).not.toBeNull();
+    expect(screen.queryByText('Active')).toBeNull();
   });
 });

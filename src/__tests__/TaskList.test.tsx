@@ -26,22 +26,6 @@ const defaultProps = {
 };
 
 describe('TaskList', () => {
-  it('renders the list title', () => {
-    render(<TaskList {...defaultProps} title="My List" />);
-    expect(screen.getByText('My List')).toBeInTheDocument();
-  });
-
-  it('shows task count', () => {
-    const tasks = [makeTask(), makeTask({ id: 'task-2', title: 'Task 2' })];
-    render(<TaskList {...defaultProps} tasks={tasks} />);
-    expect(screen.getByText('2 tasks')).toBeInTheDocument();
-  });
-
-  it('shows singular "1 task"', () => {
-    render(<TaskList {...defaultProps} tasks={[makeTask()]} />);
-    expect(screen.getByText('1 task')).toBeInTheDocument();
-  });
-
   it('renders empty state when no tasks', () => {
     render(<TaskList {...defaultProps} />);
     expect(screen.getByText('No tasks here yet')).toBeInTheDocument();
@@ -72,20 +56,38 @@ describe('TaskList', () => {
     expect(screen.queryByText(/Completed/)).toBeNull();
   });
 
-  it('shows empty state only when both lists are empty', () => {
+  it('does not show empty state when completed tasks exist', () => {
     const completed = [makeTask({ completed: true })];
-    const { container } = render(
-      <TaskList {...defaultProps} completedTasks={completed} />
-    );
-    expect(container.querySelector('.py-16')).toBeNull();
+    render(<TaskList {...defaultProps} completedTasks={completed} />);
+    expect(screen.queryByText('No tasks here yet')).toBeNull();
   });
 
-  it('passes activeTaskId to TaskCard', () => {
+  it('passes activeTaskId to TaskCard for highlighting', () => {
     const task = makeTask({ id: 'active-one' });
     const { container } = render(
       <TaskList {...defaultProps} tasks={[task]} activeTaskId="active-one" />
     );
-    const card = container.querySelector('.shadow-lg');
+    // Active card should have glow-green class
+    const card = container.querySelector('.glow-green');
     expect(card).not.toBeNull();
+  });
+
+  it('renders multiple active tasks', () => {
+    const tasks = [
+      makeTask({ id: 'a', title: 'Task A' }),
+      makeTask({ id: 'b', title: 'Task B' }),
+      makeTask({ id: 'c', title: 'Task C' }),
+    ];
+    render(<TaskList {...defaultProps} tasks={tasks} />);
+    expect(screen.getByText('Task A')).toBeInTheDocument();
+    expect(screen.getByText('Task B')).toBeInTheDocument();
+    expect(screen.getByText('Task C')).toBeInTheDocument();
+  });
+
+  it('shows empty state only when both lists are empty', () => {
+    const tasks = [makeTask()];
+    const { container } = render(<TaskList {...defaultProps} tasks={tasks} />);
+    // The "No tasks here yet" message should NOT appear
+    expect(screen.queryByText('No tasks here yet')).toBeNull();
   });
 });

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   getLists,
   saveLists,
@@ -17,8 +17,13 @@ import {
 import { DEFAULT_LISTS } from '@/lib/defaults';
 import { TaskList, Task } from '@/lib/types';
 
+function clearStore() {
+  try { localStorage.removeItem('taskmanager_lists'); } catch {}
+  try { localStorage.removeItem('taskmanager_tasks'); } catch {}
+}
+
 beforeEach(() => {
-  localStorage.clear();
+  clearStore();
 });
 
 describe('getLists', () => {
