@@ -20,15 +20,21 @@ export default function Home() {
   const [showAddTask, setShowAddTask] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function init() {
-      await seedIfEmpty();
-      const loadedLists = await getLists();
-      setLists(loadedLists.length > 0 ? loadedLists : DEFAULT_LISTS);
-      const loadedTasks = await getTasks();
-      setTasks(processTasks(loadedTasks));
-      setHydrated(true);
+      try {
+        await seedIfEmpty();
+        const loadedLists = await getLists();
+        setLists(loadedLists.length > 0 ? loadedLists : DEFAULT_LISTS);
+        const loadedTasks = await getTasks();
+        setTasks(processTasks(loadedTasks));
+        setHydrated(true);
+      } catch (e: unknown) {
+        console.error('Init error:', e);
+        setError(e instanceof Error ? e.message : String(e));
+      }
     }
     init();
   }, []);
@@ -113,6 +119,17 @@ export default function Home() {
     await deleteTask(id);
     setTasks((prev) => prev.filter((t) => t.id !== id));
   };
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#05080c] flex items-center justify-center">
+        <div className="text-center glass rounded-2xl p-8 max-w-md glow-red">
+          <p className="text-neon-red text-sm font-semibold mb-2">Connection Error</p>
+          <p className="text-[#a0a0a0] text-xs">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!hydrated) {
     return (
