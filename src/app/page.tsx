@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Task, TaskList, RepeatType } from '@/lib/types';
-import { getLists, getTasks, saveLists, saveTasks } from '@/lib/store';
+import { getLists, getTasks, saveLists, saveTasks, addList, deleteList, addTask, deleteTask, updateTask, seedIfEmpty } from '@/lib/store';
 import { DEFAULT_LISTS } from '@/lib/defaults';
 import { processTasks } from '@/lib/timeEngine';
 import { useTimeEngine } from '@/hooks/useTimeEngine';
@@ -22,25 +22,22 @@ export default function Home() {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    const loadedLists = getLists();
-    setLists(loadedLists.length > 0 ? loadedLists : DEFAULT_LISTS);
-    setTasks(getTasks());
-    setHydrated(true);
+    async function init() {
+      await seedIfEmpty();
+      const loadedLists = await getLists();
+      setLists(loadedLists.length > 0 ? loadedLists : DEFAULT_LISTS);
+      const loadedTasks = await getTasks();
+      setTasks(processTasks(loadedTasks));
+      setHydrated(true);
+    }
+    init();
   }, []);
 
-  useEffect(() => {
-    if (hydrated) saveLists(lists);
-  }, [lists, hydrated]);
-
-  useEffect(() => {
-    if (hydrated) saveTasks(tasks);
-  }, [tasks, hydrated]);
-
-  const updateTasks = (updater: (prev: Task[]) => Task[]) => {
-    setTasks((prev) => {
-      const next = updater(prev);
-      return processTasks(next);
-    });
+  const updateTasks = async (updater: (prev: Task[]) => Task[]) => {
+    const next = updater(tasks);
+    const processed = processTasks(next);
+    setTasks(processed);
+    await saveTasks(processed);
   };
 
   const { activeTaskId } = useTimeEngine(tasks, (updated) => {
@@ -75,7 +72,7 @@ export default function Home() {
 
   const { incomplete, completed } = getVisibleTasks();
 
-  const handleAddTask = (data: {
+  const handleAddTask = async (data: {
     listId: string;
     title: string;
     notes?: string;
@@ -85,46 +82,36 @@ export default function Home() {
     alarm: boolean;
     ringtone?: string;
   }) => {
-    const newTask: Task = {
-      id: crypto.randomUUID(),
-      listId: data.listId,
-      title: data.title,
-      notes: data.notes,
-      repeat: data.repeat,
-      startTime: data.startTime,
-      endTime: data.endTime,
-      alarm: data.alarm,
-      ringtone: data.ringtone,
-      completed: false,
-      createdAt: Date.now(),
-    };
-    updateTasks((prev) => [...prev, newTask]);
+    const newTask = await addTask(data);
+    setTasks((prev) => [...prev, newTask]);
   };
 
-  const handleCreateList = (name: string) => {
-    const newList: TaskList = {
-      id: crypto.randomUUID(),
-      name,
-      isDefault: false,
-      createdAt: Date.now(),
-    };
+  const handleCreateList = async (name: string) => {
+    const newList = await addList(name);
     setLists((prev) => [...prev, newList]);
   };
 
-  const handleDeleteList = (id: string) => {
+  const handleDeleteList = async (id: string) => {
+    await deleteList(id);
     setLists((prev) => prev.filter((l) => l.id !== id));
-    updateTasks((prev) => prev.filter((t) => t.listId !== id));
+    setTasks((prev) => prev.filter((t) => t.listId !== id));
     if (activeListId === id) setActiveListId('today');
   };
 
-  const handleComplete = (id: string) => {
-    updateTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed, completedAt: !t.completed ? Date.now() : undefined } : t))
+  const handleComplete = async (id: string) => {
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+    const nowCompleted = !task.completed;
+    const updates = { completed: nowCompleted, completedAt: nowCompleted ? Date.now() : undefined };
+    await updateTask(id, updates);
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, ...updates } : t))
     );
   };
 
-  const handleDelete = (id: string) => {
-    updateTasks((prev) => prev.filter((t) => t.id !== id));
+  const handleDelete = async (id: string) => {
+    await deleteTask(id);
+    setTasks((prev) => prev.filter((t) => t.id !== id));
   };
 
   if (!hydrated) {
@@ -138,7 +125,7 @@ export default function Home() {
             className="text-xs text-neon-green tracking-[0.3em] uppercase"
             style={{ fontFamily: 'Orbitron, monospace' }}
           >
-            Loading...
+            Syncing...
           </p>
         </div>
       </div>

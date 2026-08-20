@@ -9,11 +9,11 @@ export function useTimeEngine(tasks: Task[], onUpdate: (tasks: Task[]) => void) 
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const tick = useCallback(() => {
-    const current = getTasks();
+  const tick = useCallback(async () => {
+    const current = await getTasks();
     let updated = processTasks(current);
     updated = moveDailyTasks(updated);
-    saveTasks(updated);
+    await saveTasks(updated);
     onUpdate(updated);
 
     const now = new Date();

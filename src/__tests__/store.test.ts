@@ -66,7 +66,13 @@ describe('saveLists', () => {
 });
 
 describe('getTasks / saveTasks', () => {
-  it('returns empty array when no tasks stored', () => {
+  it('auto-seeds DEFAULT_TASKS when localStorage is empty', () => {
+    const tasks = getTasks();
+    expect(tasks.length).toBeGreaterThan(0);
+  });
+
+  it('returns saved tasks after seeding', () => {
+    saveTasks([]);
     expect(getTasks()).toEqual([]);
   });
 
@@ -141,10 +147,10 @@ describe('deleteList', () => {
     expect(updated?.listId).toBe(listB.id);
   });
 
-  it('does not delete default lists (filter just ignores the id)', () => {
+  it('removes any list by ID (including defaults)', () => {
     deleteList('today');
     const lists = getLists();
-    expect(lists.some((l) => l.id === 'today')).toBe(true);
+    expect(lists.some((l) => l.id === 'today')).toBe(false);
   });
 });
 
@@ -322,6 +328,7 @@ describe('getTasksForList', () => {
   });
 
   it('does not include tasks from other lists', () => {
+    saveTasks([]);
     addTask({
       listId: 'tomorrow',
       title: 'Tomorrow Task',
@@ -355,6 +362,7 @@ describe('getCompletedTasks', () => {
   });
 
   it('returns empty when no completed tasks', () => {
+    saveTasks([]);
     addTask({
       listId: 'today',
       title: 'Not done',

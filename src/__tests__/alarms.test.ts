@@ -1,10 +1,11 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { playAlarm, stopAlarm, requestNotificationPermission, showNotification } from '@/lib/alarms';
-import { mockAudioInstances } from './setup';
+import { mockAudioInstances, mockNotificationInstances } from './setup';
 
 describe('playAlarm', () => {
   beforeEach(() => {
     mockAudioInstances.length = 0;
+    mockNotificationInstances.length = 0;
   });
 
   it('creates an Audio element with the ringtone file', () => {
@@ -74,19 +75,23 @@ describe('requestNotificationPermission', () => {
 });
 
 describe('showNotification', () => {
-  it('creates a notification when permission is granted', () => {
+  beforeEach(() => {
+    mockNotificationInstances.length = 0;
     // @ts-expect-error - mock Notification
     globalThis.Notification.permission = 'granted';
-    const spy = vi.spyOn(globalThis, 'Notification');
+  });
+
+  it('creates a notification when permission is granted', () => {
     showNotification('Title', 'Body');
-    expect(spy).toHaveBeenCalledWith('Title', { body: 'Body', icon: '/favicon.ico' });
+    expect(mockNotificationInstances.length).toBe(1);
+    expect(mockNotificationInstances[0].title).toBe('Title');
+    expect(mockNotificationInstances[0].options).toEqual({ body: 'Body', icon: '/favicon.ico' });
   });
 
   it('does not create notification when permission is denied', () => {
     // @ts-expect-error - mock Notification
     globalThis.Notification.permission = 'denied';
-    const spy = vi.spyOn(globalThis, 'Notification');
     showNotification('Title', 'Body');
-    expect(spy).not.toHaveBeenCalled();
+    expect(mockNotificationInstances.length).toBe(0);
   });
 });

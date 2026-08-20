@@ -13,7 +13,7 @@ vi.stubGlobal('localStorage', {
 });
 
 // --- Audio mock ---
-const mockAudioInstances: InstanceType<typeof Audio>[] = [];
+export const mockAudioInstances: InstanceType<typeof Audio>[] = [];
 
 class MockAudio {
   src = '';
@@ -32,6 +32,8 @@ class MockAudio {
 vi.stubGlobal('Audio', MockAudio);
 
 // --- Notification mock ---
+export const mockNotificationInstances: { title: string; options?: NotificationOptions }[] = [];
+
 class MockNotification {
   static permission: NotificationPermission = 'granted';
   static requestPermission = vi.fn().mockResolvedValue('granted' as NotificationPermission);
@@ -40,8 +42,10 @@ class MockNotification {
   constructor(title: string, options?: NotificationOptions) {
     this.title = title;
     this.options = options;
+    mockNotificationInstances.push({ title, options });
   }
 }
+
 vi.stubGlobal('Notification', MockNotification);
 
 // --- crypto.randomUUID polyfill ---
@@ -49,6 +53,3 @@ if (!crypto.randomUUID) {
   // @ts-expect-error - polyfill for jsdom
   crypto.randomUUID = () => crypto.getRandomValues(new Uint8Array(16)).reduce((acc, byte) => acc + byte.toString(16).padStart(2, '0'), '');
 }
-
-// Expose for alarms.test.ts to access instances
-export { mockAudioInstances };
