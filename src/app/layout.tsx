@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { AuthProvider } from "@/lib/auth-provider";
 
 export const metadata: Metadata = {
   title: "TaskManager // Command Center",
@@ -26,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="min-h-full flex flex-col bg-[#05080c] text-[#e8e8e8] scan-line">
-        {children}
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

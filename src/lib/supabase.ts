@@ -10,31 +10,3 @@ export function getSupabase(): SupabaseClient | null {
   _client = createClient(url, key);
   return _client;
 }
-
-let _userId: string | null = null;
-
-export async function getUserId(): Promise<string | null> {
-  if (_userId) return _userId;
-  if (typeof window === 'undefined') return null;
-
-  // Check localStorage first
-  const stored = localStorage.getItem('tm_user_id');
-  if (stored) {
-    _userId = stored;
-    return stored;
-  }
-
-  const sb = getSupabase();
-  if (!sb) return null;
-
-  const { data, error } = await sb.auth.signInAnonymously();
-  if (error || !data?.user) return null;
-
-  _userId = data.user.id;
-  localStorage.setItem('tm_user_id', data.user.id);
-  return data.user.id;
-}
-
-export function isSupabaseAvailable(): boolean {
-  return getSupabase() !== null;
-}
