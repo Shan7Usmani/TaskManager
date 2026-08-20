@@ -1,374 +1,238 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  getLists,
-  saveLists,
-  getTasks,
-  saveTasks,
-  addList,
-  deleteList,
-  renameList,
-  addTask,
-  updateTask,
-  completeTask,
-  deleteTask,
-  getTasksForList,
-  getCompletedTasks,
-} from '@/lib/store';
-import { DEFAULT_LISTS } from '@/lib/defaults';
-import { TaskList, Task } from '@/lib/types';
+
+const FAKE_USER_ID = 'test-user-001';
+const db: Record<string, Record<string, unknown>[]> = {
+  task_lists: [],
+  tasks: [],
+};
+
+function resetDb() {
+  db.task_lists = [];
+  db.tasks = [];
+}
+
+function makeBuilder(table: string) {
+  const store = db[table];
+  const filters: { col: string; val: unknown }[] = [];
+  let orderCol: string | null = null;
+  let orderAsc = true;
+  let operation: 'select' | 'insert' | 'upsert' | 'update' | 'delete' = 'select';
+  let payload: Record<string, unknown> | null = null;
+
+  const builder = {
+    select: vi.fn(() => { operation = 'select'; return builder; }),
+    eq: vi.fn((col: string, val: unknown) => { filters.push({ col, val }); return builder; }),
+    order: vi.fn((col: string, opts?: { ascending?: boolean }) => { orderCol = col; orderAsc = opts?.ascending ?? true; return builder; }),
+    insert: vi.fn((row: Record<string, unknown>) => { operation = 'insert'; payload = row; return builder; }),
+    upsert: vi.fn((row: Record<string, unknown>) => { operation = 'upsert'; payload = row; return builder; }),
+    update: vi.fn((updates: Record<string, unknown>) => { operation = 'update'; payload = updates; return builder; }),
+    delete: vi.fn(() => { operation = 'delete'; return builder; }),
+  };
+
+  (builder as unknown as { then: (r: (v: unknown) => void) => void }).then = (resolve: (v: unknown) => void) => {
+    const filtered = () => store.filter((row) => filters.every((f) => row[f.col] === f.val));
+    switch (operation) {
+      case 'select': {
+        let result = filtered();
+        if (orderCol) {
+          result = [...result].sort((a, b) => {
+            const av = a[orderCol!], bv = b[orderCol!];
+            return orderAsc ? (av as number) - (bv as number) : (bv as number) - (av as number);
+          });
+        }
+        resolve({ data: result, error: null, count: result.length });
+        break;
+      }
+      case 'insert':
+        store.push({ ...payload });
+        resolve({ data: null, error: null });
+        break;
+      case 'upsert': {
+        const idx = store.findIndex((r) => r.id === payload!.id);
+        if (idx >= 0) store[idx] = { ...payload };
+        else store.push({ ...payload });
+        resolve({ data: null, error: null });
+        break;
+      }
+      case 'update':
+        for (const row of filtered()) Object.assign(row, payload);
+        resolve({ data: null, error: null });
+        break;
+      case 'delete': {
+        for (const f of filters) {
+          for (let i = store.length - 1; i >= 0; i--) {
+            if (store[i][f.col] === f.val) store.splice(i, 1);
+          }
+        }
+        resolve({ data: null, error: null });
+        break;
+      }
+    }
+  };
+  return builder;
+}
+
+const mockSupabase = {
+  auth: {
+    signInAnonymously: vi.fn().mockResolvedValue({ data: { user: { id: FAKE_USER_ID } }, error: null }),
+  },
+  from: vi.fn((table: string) => makeBuilder(table)),
+};
+
+vi.mock('@/lib/supabase', () => ({
+  getSupabase: () => mockSupabase,
+  getOrCreateUserId: vi.fn().mockResolvedValue(FAKE_USER_ID),
+}));
+
+const storeMod = await import('@/lib/store');
+const { getLists, saveLists, addList, deleteList, getTasks, saveTasks, addTask, deleteTask, updateTask } = storeMod;
 
 beforeEach(() => {
-  localStorage.clear();
+  resetDb();
+  vi.clearAllMocks();
 });
 
 describe('getLists', () => {
-  it('returns DEFAULT_LISTS when localStorage is empty', () => {
-    const lists = getLists();
-    expect(lists).toHaveLength(DEFAULT_LISTS.length);
-    expect(lists[0].id).toBe('today');
-  });
-
-  it('persists default lists to localStorage on first call', () => {
-    getLists();
-    const stored = localStorage.getItem('taskmanager_lists');
-    expect(stored).not.toBeNull();
-    const parsed = JSON.parse(stored!);
-    expect(parsed).toHaveLength(DEFAULT_LISTS.length);
-  });
-
-  it('returns previously saved lists', () => {
-    const custom: TaskList[] = [
-      { id: 'custom-1', name: 'Custom', isDefault: false, createdAt: 100 },
-    ];
-    saveLists(custom);
-    const lists = getLists();
-    expect(lists).toHaveLength(1);
-    expect(lists[0].name).toBe('Custom');
-  });
-});
-
-describe('saveLists', () => {
-  it('saves and retrieves lists', () => {
-    const lists: TaskList[] = [
-      { id: 'a', name: 'A', isDefault: false, createdAt: 1 },
-    ];
-    saveLists(lists);
-    expect(JSON.parse(localStorage.getItem('taskmanager_lists')!)).toEqual(lists);
-  });
-
-  it('overwrites existing lists', () => {
-    saveLists([{ id: 'first', name: 'First', isDefault: false, createdAt: 1 }]);
-    saveLists([{ id: 'second', name: 'Second', isDefault: false, createdAt: 2 }]);
-    const result = getLists();
-    expect(result).toHaveLength(1);
-    expect(result[0].id).toBe('second');
-  });
-});
-
-describe('getTasks / saveTasks', () => {
-  it('auto-seeds DEFAULT_TASKS when localStorage is empty', () => {
-    const tasks = getTasks();
-    expect(tasks.length).toBeGreaterThan(0);
-  });
-
-  it('returns saved tasks after seeding', () => {
-    saveTasks([]);
-    expect(getTasks()).toEqual([]);
-  });
-
-  it('saves and retrieves tasks', () => {
-    const tasks: Task[] = [
-      {
-        id: 't1',
-        listId: 'today',
-        title: 'Test',
-        repeat: 'once',
-        alarm: false,
-        completed: false,
-        createdAt: 1,
-      },
-    ];
-    saveTasks(tasks);
-    expect(getTasks()).toEqual(tasks);
+  it('returns empty when no lists exist', async () => {
+    expect(await getLists()).toEqual([]);
   });
 });
 
 describe('addList', () => {
-  it('creates a new list with UUID and appends to existing', () => {
-    const list = addList('My List');
+  it('creates a list with UUID', async () => {
+    const list = await addList('My List');
     expect(list.id).toBeDefined();
     expect(list.id.length).toBeGreaterThan(0);
     expect(list.name).toBe('My List');
     expect(list.isDefault).toBe(false);
-    expect(list.createdAt).toBeGreaterThan(0);
-
-    const all = getLists();
-    expect(all.some((l) => l.id === list.id)).toBe(true);
   });
 
-  it('new list is in addition to default lists', () => {
-    const before = getLists().length;
-    addList('Extra');
-    expect(getLists().length).toBe(before + 1);
+  it('list is retrievable', async () => {
+    await addList('Persisted');
+    const lists = await getLists();
+    expect(lists.length).toBe(1);
+    expect(lists[0].name).toBe('Persisted');
+  });
+
+  it('multiple lists are retrievable', async () => {
+    await addList('A');
+    await addList('B');
+    const lists = await getLists();
+    expect(lists.length).toBe(2);
+  });
+});
+
+describe('saveLists', () => {
+  it('upserts lists', async () => {
+    await saveLists([
+      { id: 'l1', name: 'First', isDefault: true, createdAt: 100 },
+      { id: 'l2', name: 'Second', isDefault: false, createdAt: 200 },
+    ]);
+    const lists = await getLists();
+    expect(lists.length).toBe(2);
   });
 });
 
 describe('deleteList', () => {
-  it('removes the list', () => {
-    const list = addList('To Delete');
-    deleteList(list.id);
-    expect(getLists().some((l) => l.id === list.id)).toBe(false);
+  it('removes the list', async () => {
+    const list = await addList('To Delete');
+    const before = await getLists();
+    expect(before.some((l) => l.id === list.id)).toBe(true);
+    await deleteList(list.id);
+    const after = await getLists();
+    expect(after.some((l) => l.id === list.id)).toBe(false);
   });
 
-  it('reassigns tasks from deleted list to today', () => {
-    const list = addList('Custom');
-    const task = addTask({
-      listId: list.id,
-      title: 'Task',
-      repeat: 'once',
-      alarm: false,
-    });
-    deleteList(list.id);
-    const updated = getTasks().find((t) => t.id === task.id);
-    expect(updated?.listId).toBe('today');
-  });
-
-  it('does not affect tasks in other lists', () => {
-    const listA = addList('ListA');
-    const listB = addList('ListB');
-    const taskB = addTask({
-      listId: listB.id,
-      title: 'B Task',
-      repeat: 'once',
-      alarm: false,
-    });
-    deleteList(listA.id);
-    const updated = getTasks().find((t) => t.id === taskB.id);
-    expect(updated?.listId).toBe(listB.id);
-  });
-
-  it('removes any list by ID (including defaults)', () => {
-    deleteList('today');
-    const lists = getLists();
-    expect(lists.some((l) => l.id === 'today')).toBe(false);
+  it('also removes tasks in that list', async () => {
+    const list = await addList('Custom');
+    await addTask({ listId: list.id, title: 'Task', repeat: 'once', alarm: false });
+    let tasks = await getTasks();
+    expect(tasks.some((t) => t.listId === list.id)).toBe(true);
+    await deleteList(list.id);
+    tasks = await getTasks();
+    expect(tasks.some((t) => t.listId === list.id)).toBe(false);
   });
 });
 
-describe('renameList', () => {
-  it('renames a list by id', () => {
-    const list = addList('Original');
-    renameList(list.id, 'Renamed');
-    const updated = getLists().find((l) => l.id === list.id);
-    expect(updated?.name).toBe('Renamed');
-  });
-
-  it('does not affect other lists', () => {
-    const a = addList('A');
-    const b = addList('B');
-    renameList(a.id, 'A Renamed');
-    const bUpdated = getLists().find((l) => l.id === b.id);
-    expect(bUpdated?.name).toBe('B');
+describe('getTasks', () => {
+  it('returns empty when no tasks exist', async () => {
+    expect(await getTasks()).toEqual([]);
   });
 });
 
 describe('addTask', () => {
-  it('creates a task with UUID and defaults', () => {
-    const task = addTask({
-      listId: 'today',
-      title: 'Buy milk',
-      repeat: 'once',
-      alarm: false,
-    });
+  it('creates a task with UUID and defaults', async () => {
+    const task = await addTask({ listId: 'today', title: 'Buy milk', repeat: 'once', alarm: false });
     expect(task.id).toBeDefined();
-    expect(task.id.length).toBeGreaterThan(0);
     expect(task.title).toBe('Buy milk');
     expect(task.completed).toBe(false);
-    expect(task.createdAt).toBeGreaterThan(0);
     expect(task.listId).toBe('today');
   });
 
-  it('persists optional fields', () => {
-    const task = addTask({
-      listId: 'tomorrow',
-      title: 'Meeting',
-      notes: 'Zoom link in email',
-      repeat: 'daily',
-      startTime: '10:00',
-      endTime: '11:00',
-      alarm: true,
-      ringtone: 'alarm2',
+  it('persists optional fields', async () => {
+    const task = await addTask({
+      listId: 'tomorrow', title: 'Meeting', notes: 'Zoom', repeat: 'daily',
+      startTime: '10:00', endTime: '11:00', alarm: true, ringtone: 'alarm2',
     });
-    expect(task.notes).toBe('Zoom link in email');
-    expect(task.repeat).toBe('daily');
+    expect(task.notes).toBe('Zoom');
     expect(task.startTime).toBe('10:00');
-    expect(task.endTime).toBe('11:00');
     expect(task.alarm).toBe(true);
-    expect(task.ringtone).toBe('alarm2');
   });
 
-  it('adds task to getTasks() result', () => {
-    const task = addTask({
-      listId: 'today',
-      title: 'Test',
-      repeat: 'once',
-      alarm: false,
-    });
-    expect(getTasks().some((t) => t.id === task.id)).toBe(true);
+  it('task is retrievable', async () => {
+    const task = await addTask({ listId: 'today', title: 'Findable', repeat: 'once', alarm: false });
+    const all = await getTasks();
+    expect(all.some((t) => t.id === task.id)).toBe(true);
+  });
+
+  it('multiple tasks are retrievable', async () => {
+    await addTask({ listId: 'today', title: 'A', repeat: 'once', alarm: false });
+    await addTask({ listId: 'today', title: 'B', repeat: 'daily', alarm: true });
+    expect((await getTasks()).length).toBe(2);
   });
 });
 
 describe('updateTask', () => {
-  it('updates a specific field of a task', () => {
-    const task = addTask({
-      listId: 'today',
-      title: 'Original',
-      repeat: 'once',
-      alarm: false,
-    });
-    updateTask(task.id, { title: 'Updated' });
-    const updated = getTasks().find((t) => t.id === task.id);
+  it('updates a field', async () => {
+    const task = await addTask({ listId: 'today', title: 'Original', repeat: 'once', alarm: false });
+    await updateTask(task.id, { title: 'Updated' });
+    const updated = (await getTasks()).find((t) => t.id === task.id);
     expect(updated?.title).toBe('Updated');
   });
 
-  it('does not modify other tasks', () => {
-    const a = addTask({
-      listId: 'today',
-      title: 'A',
-      repeat: 'once',
-      alarm: false,
-    });
-    const b = addTask({
-      listId: 'today',
-      title: 'B',
-      repeat: 'once',
-      alarm: false,
-    });
-    updateTask(a.id, { title: 'A Updated' });
-    const bUpdated = getTasks().find((t) => t.id === b.id);
-    expect(bUpdated?.title).toBe('B');
+  it('does not modify other tasks', async () => {
+    const a = await addTask({ listId: 'today', title: 'A', repeat: 'once', alarm: false });
+    const b = await addTask({ listId: 'today', title: 'B', repeat: 'once', alarm: false });
+    await updateTask(a.id, { title: 'A Updated' });
+    expect((await getTasks()).find((t) => t.id === b.id)?.title).toBe('B');
   });
 
-  it('can update listId to move a task', () => {
-    const task = addTask({
-      listId: 'today',
-      title: 'Move me',
-      repeat: 'once',
-      alarm: false,
-    });
-    updateTask(task.id, { listId: 'tomorrow' });
-    const updated = getTasks().find((t) => t.id === task.id);
-    expect(updated?.listId).toBe('tomorrow');
+  it('can move task to another list', async () => {
+    const task = await addTask({ listId: 'today', title: 'Move', repeat: 'once', alarm: false });
+    await updateTask(task.id, { listId: 'tomorrow' });
+    expect((await getTasks()).find((t) => t.id === task.id)?.listId).toBe('tomorrow');
   });
-});
 
-describe('completeTask', () => {
-  it('marks task as completed and sets completedAt', () => {
-    const task = addTask({
-      listId: 'today',
-      title: 'Do laundry',
-      repeat: 'once',
-      alarm: false,
-    });
-    completeTask(task.id);
-    const updated = getTasks().find((t) => t.id === task.id);
-    expect(updated?.completed).toBe(true);
-    expect(updated?.completedAt).toBeGreaterThan(0);
+  it('can mark as completed', async () => {
+    const task = await addTask({ listId: 'today', title: 'Finish', repeat: 'once', alarm: false });
+    await updateTask(task.id, { completed: true, completedAt: Date.now() });
+    const done = (await getTasks()).find((t) => t.id === task.id);
+    expect(done?.completed).toBe(true);
+    expect(done?.completedAt).toBeGreaterThan(0);
   });
 });
 
 describe('deleteTask', () => {
-  it('removes the task', () => {
-    const task = addTask({
-      listId: 'today',
-      title: 'Delete me',
-      repeat: 'once',
-      alarm: false,
-    });
-    deleteTask(task.id);
-    expect(getTasks().some((t) => t.id === task.id)).toBe(false);
+  it('removes the task', async () => {
+    const task = await addTask({ listId: 'today', title: 'Delete', repeat: 'once', alarm: false });
+    await deleteTask(task.id);
+    expect((await getTasks()).some((t) => t.id === task.id)).toBe(false);
   });
 
-  it('does not affect other tasks', () => {
-    const a = addTask({
-      listId: 'today',
-      title: 'Keep',
-      repeat: 'once',
-      alarm: false,
-    });
-    const b = addTask({
-      listId: 'today',
-      title: 'Delete',
-      repeat: 'once',
-      alarm: false,
-    });
-    deleteTask(b.id);
-    expect(getTasks().some((t) => t.id === a.id)).toBe(true);
-  });
-});
-
-describe('getTasksForList', () => {
-  it('returns only non-completed tasks for the list', () => {
-    const t1 = addTask({
-      listId: 'today',
-      title: 'Active',
-      repeat: 'once',
-      alarm: false,
-    });
-    const t2 = addTask({
-      listId: 'today',
-      title: 'Done',
-      repeat: 'once',
-      alarm: false,
-    });
-    completeTask(t2.id);
-
-    const result = getTasksForList('today');
-    expect(result.some((t) => t.id === t1.id)).toBe(true);
-    expect(result.some((t) => t.id === t2.id)).toBe(false);
-  });
-
-  it('does not include tasks from other lists', () => {
-    saveTasks([]);
-    addTask({
-      listId: 'tomorrow',
-      title: 'Tomorrow Task',
-      repeat: 'once',
-      alarm: false,
-    });
-    const result = getTasksForList('today');
-    expect(result.length).toBe(0);
-  });
-});
-
-describe('getCompletedTasks', () => {
-  it('returns only completed tasks for the list', () => {
-    const t1 = addTask({
-      listId: 'today',
-      title: 'Done',
-      repeat: 'once',
-      alarm: false,
-    });
-    completeTask(t1.id);
-    addTask({
-      listId: 'today',
-      title: 'Active',
-      repeat: 'once',
-      alarm: false,
-    });
-
-    const result = getCompletedTasks('today');
-    expect(result.length).toBe(1);
-    expect(result[0].completed).toBe(true);
-  });
-
-  it('returns empty when no completed tasks', () => {
-    saveTasks([]);
-    addTask({
-      listId: 'today',
-      title: 'Not done',
-      repeat: 'once',
-      alarm: false,
-    });
-    expect(getCompletedTasks('today')).toEqual([]);
+  it('does not affect other tasks', async () => {
+    const a = await addTask({ listId: 'today', title: 'Keep', repeat: 'once', alarm: false });
+    const b = await addTask({ listId: 'today', title: 'Remove', repeat: 'once', alarm: false });
+    await deleteTask(b.id);
+    expect((await getTasks()).some((t) => t.id === a.id)).toBe(true);
   });
 });

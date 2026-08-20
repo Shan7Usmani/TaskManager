@@ -14,6 +14,7 @@ export function getSupabase(): SupabaseClient {
 export async function getOrCreateUserId(): Promise<string> {
   if (typeof window === 'undefined') return '';
   let userId = localStorage.getItem('tm_user_id');
+
   if (userId) return userId;
 
   const { data, error } = await getSupabase().auth.signInAnonymously();
@@ -22,4 +23,10 @@ export async function getOrCreateUserId(): Promise<string> {
   userId = data.user.id;
   localStorage.setItem('tm_user_id', userId);
   return userId;
+}
+
+export function resetUser(): void {
+  localStorage.removeItem('tm_user_id');
+  _client = null;
+  window.location.reload();
 }

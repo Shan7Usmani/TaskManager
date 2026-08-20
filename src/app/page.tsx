@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Task, TaskList, RepeatType } from '@/lib/types';
-import { getLists, getTasks, saveLists, saveTasks, addList, deleteList, addTask, deleteTask, updateTask, seedIfEmpty } from '@/lib/store';
+import { getLists, getTasks, saveTasks, addList, deleteList, addTask, deleteTask, updateTask, seedIfEmpty } from '@/lib/store';
 import { DEFAULT_LISTS } from '@/lib/defaults';
 import { processTasks } from '@/lib/timeEngine';
 import { useTimeEngine } from '@/hooks/useTimeEngine';
@@ -20,30 +20,19 @@ export default function Home() {
   const [showAddTask, setShowAddTask] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function init() {
-      try {
-        await seedIfEmpty();
-        const loadedLists = await getLists();
-        setLists(loadedLists.length > 0 ? loadedLists : DEFAULT_LISTS);
-        const loadedTasks = await getTasks();
-        setTasks(processTasks(loadedTasks));
-        setHydrated(true);
-      } catch (e: unknown) {
-        console.error('Init error:', e);
-        setError(e instanceof Error ? e.message : String(e));
-      }
-    }
-    init();
+    seedIfEmpty();
+    setLists(getLists());
+    setTasks(processTasks(getTasks()));
+    setHydrated(true);
   }, []);
 
-  const updateTasks = async (updater: (prev: Task[]) => Task[]) => {
+  const updateTasks = (updater: (prev: Task[]) => Task[]) => {
     const next = updater(tasks);
     const processed = processTasks(next);
     setTasks(processed);
-    await saveTasks(processed);
+    saveTasks(processed);
   };
 
   const { activeTaskId } = useTimeEngine(tasks, (updated) => {
@@ -78,7 +67,7 @@ export default function Home() {
 
   const { incomplete, completed } = getVisibleTasks();
 
-  const handleAddTask = async (data: {
+  const handleAddTask = (data: {
     listId: string;
     title: string;
     notes?: string;
@@ -88,48 +77,37 @@ export default function Home() {
     alarm: boolean;
     ringtone?: string;
   }) => {
-    const newTask = await addTask(data);
+    const newTask = addTask(data);
     setTasks((prev) => [...prev, newTask]);
   };
 
-  const handleCreateList = async (name: string) => {
-    const newList = await addList(name);
+  const handleCreateList = (name: string) => {
+    const newList = addList(name);
     setLists((prev) => [...prev, newList]);
   };
 
-  const handleDeleteList = async (id: string) => {
-    await deleteList(id);
+  const handleDeleteList = (id: string) => {
+    deleteList(id);
     setLists((prev) => prev.filter((l) => l.id !== id));
     setTasks((prev) => prev.filter((t) => t.listId !== id));
     if (activeListId === id) setActiveListId('today');
   };
 
-  const handleComplete = async (id: string) => {
+  const handleComplete = (id: string) => {
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
     const nowCompleted = !task.completed;
     const updates = { completed: nowCompleted, completedAt: nowCompleted ? Date.now() : undefined };
-    await updateTask(id, updates);
+    updateTask(id, updates);
     setTasks((prev) =>
       prev.map((t) => (t.id === id ? { ...t, ...updates } : t))
     );
   };
 
-  const handleDelete = async (id: string) => {
-    await deleteTask(id);
+  const handleDelete = (id: string) => {
+    deleteTask(id);
     setTasks((prev) => prev.filter((t) => t.id !== id));
   };
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-[#05080c] flex items-center justify-center">
-        <div className="text-center glass rounded-2xl p-8 max-w-md glow-red">
-          <p className="text-neon-red text-sm font-semibold mb-2">Connection Error</p>
-          <p className="text-[#a0a0a0] text-xs">{error}</p>
-        </div>
-      </div>
-    );
-  }
 
   if (!hydrated) {
     return (
@@ -142,7 +120,7 @@ export default function Home() {
             className="text-xs text-neon-green tracking-[0.3em] uppercase"
             style={{ fontFamily: 'Orbitron, monospace' }}
           >
-            Syncing...
+            Loading...
           </p>
         </div>
       </div>
