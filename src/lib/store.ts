@@ -1,11 +1,11 @@
 import { TaskList, Task } from './types';
-import { supabase, getOrCreateUserId } from './supabase';
+import { getSupabase, getOrCreateUserId } from './supabase';
 
 // === LISTS ===
 
 export async function getLists(): Promise<TaskList[]> {
   const userId = await getOrCreateUserId();
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('task_lists')
     .select('*')
     .eq('user_id', userId)
@@ -23,7 +23,7 @@ export async function saveLists(lists: TaskList[]): Promise<void> {
   const userId = await getOrCreateUserId();
   for (let i = 0; i < lists.length; i++) {
     const l = lists[i];
-    await supabase
+    await getSupabase()
       .from('task_lists')
       .upsert({
         id: l.id,
@@ -46,21 +46,21 @@ export async function addList(name: string): Promise<TaskList> {
     position: 999,
     created_at: new Date().toISOString(),
   };
-  const { error } = await supabase.from('task_lists').insert(newList);
+  const { error } = await getSupabase().from('task_lists').insert(newList);
   if (error) throw error;
   return { id: newList.id, name, isDefault: false, createdAt: Date.now() };
 }
 
 export async function deleteList(id: string): Promise<void> {
-  await supabase.from('task_lists').delete().eq('id', id);
-  await supabase.from('tasks').delete().eq('list_id', id);
+  await getSupabase().from('task_lists').delete().eq('id', id);
+  await getSupabase().from('tasks').delete().eq('list_id', id);
 }
 
 // === TASKS ===
 
 export async function getTasks(): Promise<Task[]> {
   const userId = await getOrCreateUserId();
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('tasks')
     .select('*')
     .eq('user_id', userId);
@@ -84,7 +84,7 @@ export async function getTasks(): Promise<Task[]> {
 export async function saveTasks(tasks: Task[]): Promise<void> {
   const userId = await getOrCreateUserId();
   for (const t of tasks) {
-    await supabase
+    await getSupabase()
       .from('tasks')
       .upsert({
         id: t.id,
@@ -121,7 +121,7 @@ export async function addTask(task: Omit<Task, 'id' | 'createdAt' | 'completed'>
     completed_at: null,
     created_at: Date.now(),
   };
-  const { error } = await supabase.from('tasks').insert(newTask);
+  const { error } = await getSupabase().from('tasks').insert(newTask);
   if (error) throw error;
   return {
     id: newTask.id,
@@ -139,7 +139,7 @@ export async function addTask(task: Omit<Task, 'id' | 'createdAt' | 'completed'>
 }
 
 export async function deleteTask(id: string): Promise<void> {
-  await supabase.from('tasks').delete().eq('id', id);
+  await getSupabase().from('tasks').delete().eq('id', id);
 }
 
 export async function updateTask(id: string, updates: Partial<Task>): Promise<void> {
@@ -154,7 +154,7 @@ export async function updateTask(id: string, updates: Partial<Task>): Promise<vo
   if (updates.ringtone !== undefined) dbUpdates.ringtone = updates.ringtone || null;
   if (updates.completed !== undefined) dbUpdates.completed = updates.completed;
   if (updates.completedAt !== undefined) dbUpdates.completed_at = updates.completedAt || null;
-  await supabase.from('tasks').update(dbUpdates).eq('id', id);
+  await getSupabase().from('tasks').update(dbUpdates).eq('id', id);
 }
 
 // === SEED ===
@@ -163,14 +163,14 @@ import { DEFAULT_LISTS, DEFAULT_TASKS } from './defaults';
 
 export async function seedIfEmpty(): Promise<void> {
   const userId = await getOrCreateUserId();
-  const { count } = await supabase
+  const { count } = await getSupabase()
     .from('task_lists')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId);
 
   if (count === 0) {
     for (let i = 0; i < DEFAULT_LISTS.length; i++) {
-      await supabase.from('task_lists').insert({
+      await getSupabase().from('task_lists').insert({
         id: DEFAULT_LISTS[i].id,
         user_id: userId,
         name: DEFAULT_LISTS[i].name,
@@ -180,7 +180,7 @@ export async function seedIfEmpty(): Promise<void> {
       });
     }
     for (const t of DEFAULT_TASKS) {
-      await supabase.from('tasks').insert({
+      await getSupabase().from('tasks').insert({
         id: crypto.randomUUID(),
         user_id: userId,
         list_id: t.listId,
