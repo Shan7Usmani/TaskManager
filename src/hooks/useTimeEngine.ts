@@ -9,10 +9,11 @@ export function useTimeEngine(tasks: Task[], onUpdate: (tasks: Task[]) => void) 
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const tick = useCallback(() => {
-    let updated = processTasks(getTasks());
+  const tick = useCallback(async () => {
+    let allTasks = await getTasks();
+    let updated = processTasks(allTasks);
     updated = moveDailyTasks(updated);
-    saveTasks(updated);
+    await saveTasks(updated);
     onUpdate(updated);
 
     const now = new Date();
@@ -31,7 +32,7 @@ export function useTimeEngine(tasks: Task[], onUpdate: (tasks: Task[]) => void) 
 
   useEffect(() => {
     tick();
-    intervalRef.current = setInterval(tick, 30000);
+    intervalRef.current = setInterval(() => { tick(); }, 30000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };

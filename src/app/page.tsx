@@ -22,18 +22,15 @@ export default function Home() {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    seedIfEmpty();
-    setLists(getLists());
-    setTasks(processTasks(getTasks()));
-    setHydrated(true);
+    async function init() {
+      await seedIfEmpty();
+      const loadedLists = await getLists();
+      setLists(loadedLists.length > 0 ? loadedLists : DEFAULT_LISTS);
+      setTasks(processTasks(await getTasks()));
+      setHydrated(true);
+    }
+    init();
   }, []);
-
-  const updateTasks = (updater: (prev: Task[]) => Task[]) => {
-    const next = updater(tasks);
-    const processed = processTasks(next);
-    setTasks(processed);
-    saveTasks(processed);
-  };
 
   const { activeTaskId } = useTimeEngine(tasks, (updated) => {
     setTasks(processTasks(updated));
@@ -67,7 +64,7 @@ export default function Home() {
 
   const { incomplete, completed } = getVisibleTasks();
 
-  const handleAddTask = (data: {
+  const handleAddTask = async (data: {
     listId: string;
     title: string;
     notes?: string;
@@ -77,35 +74,35 @@ export default function Home() {
     alarm: boolean;
     ringtone?: string;
   }) => {
-    const newTask = addTask(data);
+    const newTask = await addTask(data);
     setTasks((prev) => [...prev, newTask]);
   };
 
-  const handleCreateList = (name: string) => {
-    const newList = addList(name);
+  const handleCreateList = async (name: string) => {
+    const newList = await addList(name);
     setLists((prev) => [...prev, newList]);
   };
 
-  const handleDeleteList = (id: string) => {
-    deleteList(id);
+  const handleDeleteList = async (id: string) => {
+    await deleteList(id);
     setLists((prev) => prev.filter((l) => l.id !== id));
     setTasks((prev) => prev.filter((t) => t.listId !== id));
     if (activeListId === id) setActiveListId('today');
   };
 
-  const handleComplete = (id: string) => {
+  const handleComplete = async (id: string) => {
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
     const nowCompleted = !task.completed;
     const updates = { completed: nowCompleted, completedAt: nowCompleted ? Date.now() : undefined };
-    updateTask(id, updates);
+    await updateTask(id, updates);
     setTasks((prev) =>
       prev.map((t) => (t.id === id ? { ...t, ...updates } : t))
     );
   };
 
-  const handleDelete = (id: string) => {
-    deleteTask(id);
+  const handleDelete = async (id: string) => {
+    await deleteTask(id);
     setTasks((prev) => prev.filter((t) => t.id !== id));
   };
 

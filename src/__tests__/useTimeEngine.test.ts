@@ -31,8 +31,8 @@ function makeTask(overrides: Partial<Task> = {}): Task {
 beforeEach(() => {
   vi.useFakeTimers();
   vi.clearAllMocks();
-  vi.mocked(store.getTasks).mockResolvedValue([]);
-  vi.mocked(store.saveTasks).mockResolvedValue(undefined);
+  vi.mocked(store.getTasks).mockReturnValue([]);
+  vi.mocked(store.saveTasks).mockReturnValue(undefined);
 });
 
 afterEach(() => {
@@ -42,7 +42,7 @@ afterEach(() => {
 describe('useTimeEngine', () => {
   it('calls processTasks and moveDailyTasks on tick', async () => {
     const tasks = [makeTask()];
-    vi.mocked(store.getTasks).mockResolvedValue(tasks);
+    vi.mocked(store.getTasks).mockReturnValue(tasks);
 
     await act(async () => {
       renderHook(() => useTimeEngine(tasks, vi.fn()));
@@ -54,7 +54,7 @@ describe('useTimeEngine', () => {
 
   it('saves processed tasks back to store', async () => {
     const tasks = [makeTask()];
-    vi.mocked(store.getTasks).mockResolvedValue(tasks);
+    vi.mocked(store.getTasks).mockReturnValue(tasks);
 
     await act(async () => {
       renderHook(() => useTimeEngine(tasks, vi.fn()));
@@ -66,7 +66,7 @@ describe('useTimeEngine', () => {
   it('calls onUpdate with processed tasks', async () => {
     const tasks = [makeTask()];
     const onUpdate = vi.fn();
-    vi.mocked(store.getTasks).mockResolvedValue(tasks);
+    vi.mocked(store.getTasks).mockReturnValue(tasks);
 
     await act(async () => {
       renderHook(() => useTimeEngine(tasks, onUpdate));
@@ -76,7 +76,7 @@ describe('useTimeEngine', () => {
   });
 
   it('runs tick immediately on mount', async () => {
-    vi.mocked(store.getTasks).mockResolvedValue([]);
+    vi.mocked(store.getTasks).mockReturnValue([]);
 
     await act(async () => {
       renderHook(() => useTimeEngine([], vi.fn()));
@@ -123,7 +123,7 @@ describe('useTimeEngine', () => {
       endTime: '11:00',
       completed: false,
     });
-    vi.mocked(store.getTasks).mockResolvedValue([task]);
+    vi.mocked(store.getTasks).mockReturnValue([task]);
 
     let result: { current: { activeTaskId: string | null } };
     await act(async () => {
@@ -141,7 +141,7 @@ describe('useTimeEngine', () => {
       startTime: '10:00',
       endTime: '11:00',
     });
-    vi.mocked(store.getTasks).mockResolvedValue([task]);
+    vi.mocked(store.getTasks).mockReturnValue([task]);
 
     const { result } = await act(async () => {
       return renderHook(() => useTimeEngine([task], vi.fn()));
@@ -159,7 +159,7 @@ describe('useTimeEngine', () => {
       endTime: '11:00',
       completed: true,
     });
-    vi.mocked(store.getTasks).mockResolvedValue([task]);
+    vi.mocked(store.getTasks).mockReturnValue([task]);
 
     const { result } = await act(async () => {
       return renderHook(() => useTimeEngine([task], vi.fn()));

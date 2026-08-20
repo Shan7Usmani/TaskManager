@@ -2,31 +2,39 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 let _client: SupabaseClient | null = null;
 
-export function getSupabase(): SupabaseClient {
+export function getSupabase(): SupabaseClient | null {
   if (_client) return _client;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) throw new Error('Supabase env vars not configured');
+  if (!url || !key || !url.startsWith('http')) return null;
   _client = createClient(url, key);
   return _client;
 }
 
-export async function getOrCreateUserId(): Promise<string> {
-  if (typeof window === 'undefined') return '';
-  let userId = localStorage.getItem('tm_user_id');
+let _userId: string | null = null;
 
-  if (userId) return userId;
+export async function getUserId(): Promise<string | null> {
+  if (_userId) return _userId;
+  if (typeof window === 'undefined') return null;
 
-  const { data, error } = await getSupabase().auth.signInAnonymously();
-  if (error) throw error;
-  if (!data.user) throw new Error('No user returned');
-  userId = data.user.id;
-  localStorage.setItem('tm_user_id', userId);
-  return userId;
+  // Check localStorage first
+  const stored = localStorage.getItem('tm_user_id');
+  if (stored) {
+    _userId = stored;
+    return stored;
+  }
+
+  const sb = getSupabase();
+  if (!sb) return null;
+
+  const { data, error } = await sb.auth.signInAnonymously();
+  if (error || !data?.user) return null;
+
+  _userId = data.user.id;
+  localStorage.setItem('tm_user_id', data.user.id);
+  return data.user.id;
 }
 
-export function resetUser(): void {
-  localStorage.removeItem('tm_user_id');
-  _client = null;
-  window.location.reload();
+export function isSupabaseAvailable(): boolean {
+  return getSupabase() !== null;
 }
