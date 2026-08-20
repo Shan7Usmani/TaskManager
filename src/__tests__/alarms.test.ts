@@ -1,38 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { playAlarm, stopAlarm, requestNotificationPermission, showNotification } from '@/lib/alarms';
-
-let mockAudioInstances: InstanceType<typeof Audio>[] = [];
-const OriginalAudio = globalThis.Audio;
-
-beforeEach(() => {
-  mockAudioInstances = [];
-  // @ts-expect-error - mock
-  globalThis.Audio = class MockAudio {
-    src = '';
-    loop = false;
-    volume = 1;
-    currentTime = 0;
-    paused = true;
-    constructor(src?: string) {
-      if (src) this.src = src;
-      mockAudioInstances.push(this as unknown as InstanceType<typeof Audio>);
-    }
-    play() {
-      this.paused = false;
-      return Promise.resolve();
-    }
-    pause() {
-      this.paused = true;
-    }
-  };
-  vi.clearAllMocks();
-});
-
-afterEach(() => {
-  globalThis.Audio = OriginalAudio;
-});
+import { mockAudioInstances } from './setup';
 
 describe('playAlarm', () => {
+  beforeEach(() => {
+    mockAudioInstances.length = 0;
+  });
+
   it('creates an Audio element with the ringtone file', () => {
     playAlarm('/sounds/alarm1.mp3');
     expect(mockAudioInstances.length).toBe(1);
@@ -50,9 +24,8 @@ describe('playAlarm', () => {
   });
 
   it('calls play()', () => {
-    const spy = vi.spyOn(mockAudioInstances[0], 'play');
     playAlarm('/sounds/alarm1.mp3');
-    expect(spy).toHaveBeenCalled();
+    expect(mockAudioInstances[0].play).toHaveBeenCalled();
   });
 
   it('stops previous alarm before starting new one', () => {
@@ -65,6 +38,10 @@ describe('playAlarm', () => {
 });
 
 describe('stopAlarm', () => {
+  beforeEach(() => {
+    mockAudioInstances.length = 0;
+  });
+
   it('does nothing when no alarm is playing', () => {
     expect(() => stopAlarm()).not.toThrow();
   });

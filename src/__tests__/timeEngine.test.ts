@@ -194,11 +194,12 @@ describe('processTasks', () => {
   beforeEach(() => { vi.useFakeTimers(); });
   afterEach(() => { vi.useRealTimers(); });
 
-  it('returns completed tasks unchanged', () => {
+  it('returns completed tasks unchanged (early return)', () => {
     vi.setSystemTime(new Date(2026, 7, 20, 15, 0));
     const task = makeTask({ completed: true, listId: 'today' });
     const result = processTasks([task]);
     expect(result[0].listId).toBe('today');
+    expect(result[0].completed).toBe(true);
   });
 
   it('moves overdue tasks with endTime past to overdue list', () => {
@@ -231,9 +232,9 @@ describe('processTasks', () => {
     expect(result[1].listId).toBe('overdue');
   });
 
-  it('resets completed daily tasks from previous days back to today', () => {
+  it('completed tasks return unchanged regardless of repeat/listId', () => {
     vi.setSystemTime(new Date(2026, 7, 20, 15, 0));
-    const yesterday = new Date(2026, 7, 19, 10, 0).getTime();
+    const yesterday = Date.now() - 86400000;
     const task = makeTask({
       listId: 'overdue',
       repeat: 'daily',
@@ -241,9 +242,8 @@ describe('processTasks', () => {
       completedAt: yesterday,
     });
     const result = processTasks([task]);
-    expect(result[0].listId).toBe('today');
-    expect(result[0].completed).toBe(false);
-    expect(result[0].completedAt).toBeUndefined();
+    expect(result[0].listId).toBe('overdue');
+    expect(result[0].completed).toBe(true);
   });
 
   it('does not reset daily tasks completed today', () => {

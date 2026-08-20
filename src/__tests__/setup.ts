@@ -1,4 +1,19 @@
 import '@testing-library/jest-dom/vitest';
+import { vi } from 'vitest';
+
+// --- localStorage mock (jsdom provides no real localStorage) ---
+const lsStore: Record<string, string> = {};
+vi.stubGlobal('localStorage', {
+  getItem: vi.fn((key: string) => lsStore[key] ?? null),
+  setItem: vi.fn((key: string, value: string) => { lsStore[key] = String(value); }),
+  removeItem: vi.fn((key: string) => { delete lsStore[key]; }),
+  clear: vi.fn(() => { for (const k of Object.keys(lsStore)) delete lsStore[k]; }),
+  get length() { return Object.keys(lsStore).length; },
+  key: vi.fn((i: number) => Object.keys(lsStore)[i] ?? null),
+});
+
+// --- Audio mock ---
+const mockAudioInstances: InstanceType<typeof Audio>[] = [];
 
 class MockAudio {
   src = '';
@@ -6,23 +21,17 @@ class MockAudio {
   volume = 1;
   currentTime = 0;
   paused = true;
-
+  play = vi.fn().mockResolvedValue(undefined);
+  pause = vi.fn();
   constructor(src?: string) {
     if (src) this.src = src;
-  }
-  play() {
-    this.paused = false;
-    return Promise.resolve();
-  }
-  pause() {
-    this.paused = true;
+    mockAudioInstances.push(this as unknown as InstanceType<typeof Audio>);
   }
 }
 
-// @ts-expect-error - overriding global Audio for tests
-globalThis.Audio = MockAudio;
+vi.stubGlobal('Audio', MockAudio);
 
-// Mock Notification
+// --- Notification mock ---
 class MockNotification {
   static permission: NotificationPermission = 'granted';
   static requestPermission = vi.fn().mockResolvedValue('granted' as NotificationPermission);
@@ -33,11 +42,13 @@ class MockNotification {
     this.options = options;
   }
 }
-// @ts-expect-error - overriding global Notification for tests
-globalThis.Notification = MockNotification;
+vi.stubGlobal('Notification', MockNotification);
 
-// Mock crypto.randomUUID
+// --- crypto.randomUUID polyfill ---
 if (!crypto.randomUUID) {
   // @ts-expect-error - polyfill for jsdom
   crypto.randomUUID = () => crypto.getRandomValues(new Uint8Array(16)).reduce((acc, byte) => acc + byte.toString(16).padStart(2, '0'), '');
 }
+
+// Expose for alarms.test.ts to access instances
+export { mockAudioInstances };

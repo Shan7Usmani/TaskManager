@@ -17,13 +17,8 @@ import {
 import { DEFAULT_LISTS } from '@/lib/defaults';
 import { TaskList, Task } from '@/lib/types';
 
-function clearStore() {
-  try { localStorage.removeItem('taskmanager_lists'); } catch {}
-  try { localStorage.removeItem('taskmanager_tasks'); } catch {}
-}
-
 beforeEach(() => {
-  clearStore();
+  localStorage.clear();
 });
 
 describe('getLists', () => {

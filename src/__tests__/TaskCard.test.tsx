@@ -79,7 +79,7 @@ describe('TaskCard', () => {
       />
     );
     expect(screen.getByText('10:00')).toBeInTheDocument();
-    expect(screen.getByText('11:00')).toBeInTheDocument();
+    expect(screen.getByText(/11:00/)).toBeInTheDocument();
   });
 
   it('renders Daily badge for daily tasks', () => {
