@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { RepeatType } from '@/lib/types';
 import { RINGTONES } from '@/lib/defaults';
-import { X, Bell, Clock, Repeat } from 'lucide-react';
+import { X, Bell, Clock, Repeat, Zap } from 'lucide-react';
 
 interface AddTaskDialogProps {
   listId: string;
@@ -46,23 +46,33 @@ export default function AddTaskDialog({ listId, onClose, onAdd }: AddTaskDialogP
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-md shadow-2xl">
-        <div className="flex items-center justify-between p-4 border-b border-zinc-800">
-          <h2 className="text-lg font-semibold text-zinc-100">New Task</h2>
-          <button onClick={onClose} className="p-1 text-zinc-500 hover:text-zinc-300">
-            <X className="w-5 h-5" />
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+      <div className="glass-strong rounded-2xl w-full max-w-md shadow-2xl glow-green animate-fade-in">
+        <div className="flex items-center justify-between p-5 border-b border-[rgba(0,255,122,0.1)]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[rgba(0,255,122,0.2)] to-[rgba(0,217,255,0.2)] flex items-center justify-center">
+              <Zap className="w-3.5 h-3.5 text-neon-green" />
+            </div>
+            <h2 className="text-base font-bold tracking-wider uppercase" style={{ fontFamily: 'Orbitron, monospace' }}>
+              New Task
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-xl text-[#606060] hover:text-neon-red hover:bg-[rgba(255,59,92,0.1)] transition-all"
+          >
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div>
             <input
               autoFocus
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Task title..."
-              className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
+              placeholder="What needs to be done?"
+              className="w-full px-4 py-3 alien-input rounded-xl text-sm"
             />
           </div>
 
@@ -72,16 +82,16 @@ export default function AddTaskDialog({ listId, onClose, onAdd }: AddTaskDialogP
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Notes (optional)..."
               rows={2}
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-500 resize-none"
+              className="w-full px-4 py-3 alien-input rounded-xl text-sm resize-none"
             />
           </div>
 
           <div className="flex items-center gap-3">
-            <Repeat className="w-4 h-4 text-zinc-500" />
+            <Repeat className="w-4 h-4 text-[#606060]" />
             <select
               value={repeat}
               onChange={(e) => setRepeat(e.target.value as RepeatType)}
-              className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 focus:outline-none focus:border-zinc-500"
+              className="flex-1 px-4 py-2.5 alien-select rounded-xl text-sm"
             >
               <option value="once">Once</option>
               <option value="daily">Daily</option>
@@ -90,40 +100,40 @@ export default function AddTaskDialog({ listId, onClose, onAdd }: AddTaskDialogP
           </div>
 
           <div className="flex items-center gap-3">
-            <Clock className="w-4 h-4 text-zinc-500" />
-            <div className="flex-1 flex gap-2">
+            <Clock className="w-4 h-4 text-[#606060]" />
+            <div className="flex-1 flex items-center gap-2">
               <input
                 type="time"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 focus:outline-none focus:border-zinc-500 text-sm"
+                className="flex-1 px-3 py-2.5 alien-input rounded-xl text-sm"
               />
-              <span className="text-zinc-600 self-center">to</span>
+              <span className="text-[#606060] text-xs">→</span>
               <input
                 type="time"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 focus:outline-none focus:border-zinc-500 text-sm"
+                className="flex-1 px-3 py-2.5 alien-input rounded-xl text-sm"
               />
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <Bell className="w-4 h-4 text-zinc-500" />
-            <label className="flex items-center gap-2 cursor-pointer">
+            <Bell className="w-4 h-4 text-[#606060]" />
+            <label className="flex items-center gap-2.5 cursor-pointer">
               <input
                 type="checkbox"
                 checked={alarm}
                 onChange={(e) => setAlarm(e.target.checked)}
-                className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 text-zinc-500 focus:ring-zinc-500"
+                className="alien-checkbox"
               />
-              <span className="text-sm text-zinc-300">Set alarm</span>
+              <span className="text-sm text-[#a0a0a0]">Alarm</span>
             </label>
             {alarm && (
               <select
                 value={ringtone}
                 onChange={(e) => setRingtone(e.target.value)}
-                className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 text-sm focus:outline-none focus:border-zinc-500"
+                className="flex-1 px-3 py-2 alien-select rounded-xl text-sm"
               >
                 {RINGTONES.map((r) => (
                   <option key={r.id} value={r.id}>
@@ -134,17 +144,17 @@ export default function AddTaskDialog({ listId, onClose, onAdd }: AddTaskDialogP
             )}
           </div>
 
-          <div className="flex gap-2 pt-2">
+          <div className="flex gap-3 pt-3">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2.5 bg-zinc-800 text-zinc-300 rounded-lg hover:bg-zinc-700 transition-colors"
+              className="flex-1 px-4 py-3 rounded-xl text-sm text-[#a0a0a0] glass hover:bg-[rgba(255,255,255,0.05)] transition-all"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2.5 bg-zinc-100 text-zinc-900 rounded-lg font-medium hover:bg-white transition-colors"
+              className="flex-1 px-4 py-3 btn-solid rounded-xl text-sm font-semibold"
             >
               Add Task
             </button>
